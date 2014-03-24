@@ -3,11 +3,12 @@
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 import ConfigParser
-import argparse
+import optparse
 import email.utils
 import smtplib
 import sys
 
+from . import __version__
 from .utils import DenTemplate, request_url
 
 
@@ -78,15 +79,18 @@ def send_mail_smtp(sender, to_list, subject, body, host, port):
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('config', type=str, help='Config file')
-    parser.add_argument('--test', action='store_true',
-                        help='Test and do not send email')
+    parser = optparse.OptionParser(usage='usage: %prog [options] config-file',
+                                   version='%prog {0}'.format(__version__))
+    parser.add_option('--test', action='store_true',
+                      help='Test and do not send email')
 
-    args = parser.parse_args()
+    (options, args) = parser.parse_args()
+
+    if not args:
+        parser.error('Please specify config file.')
 
     try:
-        cfg = get_config(args.config)
+        cfg = get_config(args[0])
     except IOError:
         print 'That config file doesn\'t exist. Please make one.'
         print 'See docs for details.'
@@ -122,7 +126,7 @@ def main():
     template = load_template(template)
     output = generate_output(template, subject, content)
 
-    if args.test:
+    if options.test:
         print '%<-----------------------------------------------------'
         print 'From:    ', sender
         print 'To:      ', ','.join(to_list)
