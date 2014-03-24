@@ -59,7 +59,8 @@ def generate_output(template, subject, content):
         'subject': subject
     })
 
-    return output.rstrip()
+    output = output.rstrip()
+    output += '\n\n--\nBuilt with Denton <https://github.com/willkg/denton>\n'
 
 
 def send_mail_smtp(sender, to_list, subject, body, host, port):
