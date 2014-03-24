@@ -5,11 +5,10 @@ from email.mime.text import MIMEText
 import ConfigParser
 import argparse
 import email.utils
-import requests
 import smtplib
 import sys
 
-from .utils import DenTemplate
+from .utils import DenTemplate, request_url
 
 
 def get_config(cfg_fn):
@@ -21,8 +20,7 @@ def get_config(cfg_fn):
 
 
 def get_content(url):
-    resp = requests.get(url)
-    return resp.json()
+    return request_url(url, is_json=True)['json']
 
 
 def parse_datetime(text):

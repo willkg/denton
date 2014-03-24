@@ -38,7 +38,6 @@ setup(
         'console_scripts': ['denton-cmd = denton.main:main'],
     },
     install_requires=[
-        'requests',
     ],
     license="BSD",
     zip_safe=True,

@@ -1,6 +1,22 @@
 import StringIO
+import json
 import re
 import sys
+import urllib2
+
+
+def request_url(url, is_json=False):
+    resp = urllib2.urlopen(url)
+
+    data = {
+        'status_code': resp.getcode(),
+        'body': resp.read()
+    }
+
+    if is_json:
+        data['json'] = json.loads(data['body'])
+
+    return data
 
 
 class DenTemplate(object):
