@@ -116,8 +116,14 @@ def main():
 
     sender = cfg.get('main', 'from')
     to_list = [item.strip() for item in cfg.get('main', 'to').split(',')]
-    host = cfg.get('main', 'host')
-    port = cfg.get('main', 'port')
+    if cfg.has_option('main', 'host'):
+        host = cfg.get('main', 'host')
+    else:
+        host = 'localhost'
+    if cfg.has_option('main', 'port'):
+        port = cfg.get('main', 'port')
+    else:
+        port = '25'
 
     subject = cfg.get('main', 'subject')
     subject = generate_subject(subject)
