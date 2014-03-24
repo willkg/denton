@@ -9,6 +9,8 @@ import requests
 import smtplib
 import sys
 
+from .utils import DenTemplate
+
 
 def get_config(cfg_fn):
     cfg = ConfigParser.ConfigParser()
@@ -42,14 +44,6 @@ def load_template(template):
     return open(template, 'r').read().strip()
 
 
-def generate_output(content, template):
-    output = []
-    for item in content:
-        output.append(template.format(**item))
-
-    return '\n\n===\n\n'.join(output)
-
-
 def generate_subject(text):
     today = datetime.now()
     today_bits = dict((m, today.strftime('%' + m))
@@ -57,6 +51,16 @@ def generate_subject(text):
                                 'm', 'M', 'p', 'S', 'U', 'v', 'W', 'x', 'X',
                                 'y', 'Y', 'Z'))
     return text.format(**today_bits)
+
+
+def generate_output(template, subject, content):
+    dt = DenTemplate()
+    output = dt.templatize(template, {
+        'content': content,
+        'subject': subject
+    })
+
+    return output.rstrip()
 
 
 def send_mail_smtp(sender, to_list, subject, body, host, port):
@@ -109,19 +113,25 @@ def main():
         ]
 
     sender = cfg.get('main', 'from')
-    to_list = cfg.get('main', 'to')
+    to_list = [item.strip() for item in cfg.get('main', 'to').split(',')]
     host = cfg.get('main', 'host')
     port = cfg.get('main', 'port')
+
     subject = cfg.get('main', 'subject')
+    subject = generate_subject(subject)
 
     template = cfg.get('main', 'template')
     template = load_template(template)
-    output = generate_output(content, template)
+    output = generate_output(template, subject, content)
 
     if args.test:
-        print 'SUBJECT:', generate_subject(subject)
-        print 'BODY:'
+        print '%<-----------------------------------------------------'
+        print 'From:    ', sender
+        print 'To:      ', ','.join(to_list)
+        print 'Subject: ', generate_subject(subject)
+        print ''
         print output
+        print '%<-----------------------------------------------------'
     else:
         send_mail_smtp(sender, to_list, generate_subject(subject), output,
                        host, port)
