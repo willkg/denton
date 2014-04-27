@@ -2,8 +2,8 @@
 denton
 ======
 
-System for emailing weekly reports with data derived from JSON API
-endpoints.
+System for emailing weekly reports with data derived from a JSON API
+endpoint.
 
 :Code:         https://github.com/willkg/denton/
 :Issues:       https://github.com/willkg/denton/issues
@@ -58,8 +58,11 @@ Denton uses a config file in config file format. Here's a sample::
     # Date field to determine the last week of stuff (optional)
     # date_field = created
 
-    # Template file to use for each item in the list
+    # Template file for email
     template = template.tmpl
+
+    # HTML template file for email
+    htmltemplate = template.html.tmpl
 
     # subject for the email
     subject = Weekly report for week {U} ({Y}-{m}-{d})
@@ -78,33 +81,32 @@ Denton uses a config file in config file format. Here's a sample::
     # port = 25
 
 
-The template format is atrocious. It allows for exec and eval parts. Here's
-an example::
+Denton has a built-in templating engine that's kind of mediocre and
+small. It allows for eval parts with ``{{`` and ``}}`` and also has
+some rough blocks like ``if``, ``else``, and ``for``.
 
-    
+Here's an example::
+
     Total entries: {{ len(content) }}
 
+    {% if content %}
+    {% for item in content %}
+    **{{ item['created'] }} :: {{ item['user']['name'] }}**
+    http://standu.ps/status/{{ item['id'] }}
 
-    {%
-    for item in content:
-        print('**{created} :: {user[name]}**'.format(
-            created=item['created'], user=item['user']))
-        print('http://standu.ps/status/{id}'.format(id=item['id']))
-        print('')
-        print('{content}'.format(content=item['content']))
-        print('')
-        print('')
-    %}
+    {{ item['content'] }}
 
 
-The eval block is wrapped in ``{{`` and ``}}``.
+    {% endfor %}
+    {% else %}
+    Nothing happened.
 
-The exec block is wrapped in ``{%`` and ``%}``.
+    {% endif %}
+
 
 Locals dict is carried throughout so you can modify the environment as you
 go along.
 
-.. Note::
-
-   This is a mediocre template format. I may fiddle with it some more, but
-   it was good enough for my purposes.
+Whitespace handling kind of sucks. Best to left-align all block tags
+and give it an extra carriage return if you need one before and after
+block tags.
