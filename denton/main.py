@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from datetime import datetime, timedelta
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import ConfigParser
 import optparse
@@ -56,22 +57,29 @@ def generate_output(template, subject, content):
     dt = DenTemplate()
     output = dt.templatize(template, {
         'content': content,
-        'subject': subject
+        'subject': subject,
+        'dentonurl': 'https://github.com/willkg/denton',
+        'dentonver': __version__
     })
 
     output = output.rstrip()
-    output += '\n\n--\nBuilt with Denton <https://github.com/willkg/denton>\n'
     return output
 
 
-def send_mail_smtp(sender, to_list, subject, body, host, port):
+def send_mail_smtp(sender, to_list, subject, body, htmlbody, host, port):
     server = smtplib.SMTP(host, port)
 
     sender_name, sender_addr = email.utils.parseaddr(sender)
     to_list = [email.utils.parseaddr(addr) for addr in to_list]
 
     for to_name, to_addr in to_list:
-        msg = MIMEText(body)
+        if htmlbody:
+            msg = MIMEMultipart('alternative')
+            msg.attach(MIMEText(body, 'plain'))
+            msg.attach(MIMEText(htmlbody, 'html'))
+        else:
+            msg = MIMEText(body)
+
         msg['To'] = email.utils.formataddr((to_name, to_addr))
         msg['From'] = email.utils.formataddr((sender_name, sender_addr))
         msg['Subject'] = subject
@@ -134,6 +142,13 @@ def main():
     template = load_template(template)
     output = generate_output(template, subject, content)
 
+    if cfg.has_option('main', 'htmltemplate'):
+        htmltemplate = cfg.get('main', 'htmltemplate')
+        htmltemplate = load_template(htmltemplate)
+        htmloutput = generate_output(htmltemplate, subject, content)
+    else:
+        htmloutput = None
+
     if options.test:
         print '%<-----------------------------------------------------'
         print 'From:    ', sender
@@ -141,10 +156,13 @@ def main():
         print 'Subject: ', generate_subject(subject)
         print ''
         print output
+        if htmloutput:
+            print ''
+            print htmloutput
         print '%<-----------------------------------------------------'
     else:
         send_mail_smtp(sender, to_list, generate_subject(subject), output,
-                       host, port)
+                       htmloutput, host, port)
 
     print 'Done!'
     return 0
