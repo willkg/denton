@@ -14,13 +14,72 @@ class TestDT(unittest.TestCase):
         eq_(self.dt.templatize('{{ foo }}', {'foo': 1}), '1')
         raises_(NameError, lambda: self.dt.templatize('{{ foo }}', {}))
 
-    def test_exec(self):
-        eq_(self.dt.templatize('{% print foo %}', {'foo': 'a'}), 'a')
-        eq_(self.dt.templatize('{% print foo %}', {'foo': 1}), '1')
-        eq_(self.dt.templatize(textwrap.dedent('''\
-        {%
-        for mem in contents:
-            print mem
-        %}
-        '''), {'contents': ['a', 'b', 'c']}),
-            'a\nb\nc')
+    def test_if(self):
+        template = textwrap.dedent("""\
+        {% if True %}
+        True
+        {% endif %}""")
+
+        eq_(self.dt.templatize(template, {}), 'True')
+
+        template = textwrap.dedent("""\
+        {% if True %}
+        True
+        {% else %}
+        False
+        {% endif %}""")
+
+        eq_(self.dt.templatize(template, {}), 'True')
+
+        template = textwrap.dedent("""\
+        {% if False %}
+        True
+        {% else %}
+        False
+        {% endif %}""")
+
+        eq_(self.dt.templatize(template, {}), 'False')
+
+        template = textwrap.dedent("""\
+        {% if len(resps) == 3 %}
+        True
+        {% else %}
+        False
+        {% endif %}""")
+
+        eq_(self.dt.templatize(template, {'resps': [1, 2, 3]}), 'True')
+
+    def test_for(self):
+        template = textwrap.dedent("""\
+        {% for mem in range(5) %}
+        {{ mem }}
+        {% endfor %}""")
+
+        eq_(self.dt.templatize(template, {}),
+            '01234')
+
+        template = textwrap.dedent("""\
+        {% for mem in range(5) %}
+        {{ mem }}
+
+        {% endfor %}""")
+
+        eq_(self.dt.templatize(template, {}),
+            '0\n1\n2\n3\n4\n')
+
+    def test_complex(self):
+        template = textwrap.dedent("""\
+        {% if resps %}
+        {% for resp in resps %}
+        {{ resp['name'] }}
+
+        {% endfor %}
+        {% else %}
+        You didn't do squat.
+        {% endif %}""")
+
+        eq_(self.dt.templatize(template, {'resps': []}),
+            'You didn\'t do squat.')
+
+        eq_(self.dt.templatize(template, {'resps': [{'name': 'joe'}]}),
+            'joe\n')
