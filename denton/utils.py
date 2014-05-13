@@ -1,12 +1,14 @@
-import StringIO
 import json
 import re
-import sys
 import urllib2
 
 
 def request_url(url, is_json=False):
-    resp = urllib2.urlopen(url)
+    try:
+        resp = urllib2.urlopen(url)
+    except urllib2.HTTPError as exc:
+        print 'Error with {0}'.format(url)
+        raise exc
 
     data = {
         'status_code': resp.getcode(),

@@ -44,13 +44,23 @@ def load_template(template):
     return open(template, 'r').read().strip()
 
 
-def generate_subject(text):
-    today = datetime.now()
-    today_bits = dict((m, today.strftime('%' + m))
-                      for m in ('a', 'A', 'b', 'B', 'c', 'd', 'H', 'I', 'j',
-                                'm', 'M', 'p', 'S', 'U', 'v', 'W', 'x', 'X',
-                                'y', 'Y', 'Z'))
-    return text.format(**today_bits)
+def interpolate_date(text, date=None):
+    """Interpolates date bits in text
+
+    :arg text: the text with things like "%Y-%m-%d" in it to get
+        interpolated with the date
+    :arg date: the date to interpolate with
+
+    :returns: new text
+
+    """
+    if date is None:
+        date = datetime.now()
+    for m in ('a', 'A', 'b', 'B', 'c', 'd', 'H', 'I', 'j',
+              'm', 'M', 'p', 'S', 'U', 'W', 'x', 'X', 'y',
+              'Y', 'Z'):
+        text = text.replace('%' + m, date.strftime('%' + m))
+    return text
 
 
 def generate_output(template, subject, content):
@@ -106,8 +116,10 @@ def main():
         print 'See docs for details.'
         return 1
 
-    url = cfg.get('main', 'url')
-    url = url.strip('/')
+    url = interpolate_date(cfg.get('main', 'url')).rstrip('/')
+
+    if options.test:
+        print url
 
     content = get_content(url)
 
@@ -135,8 +147,7 @@ def main():
     else:
         port = '25'
 
-    subject = cfg.get('main', 'subject')
-    subject = generate_subject(subject)
+    subject = interpolate_date(cfg.get('main', 'subject')).strip()
 
     template = cfg.get('main', 'template')
     template = load_template(template)
@@ -153,7 +164,7 @@ def main():
         print '%<-----------------------------------------------------'
         print 'From:    ', sender
         print 'To:      ', ','.join(to_list)
-        print 'Subject: ', generate_subject(subject)
+        print 'Subject: ', subject
         print ''
         print output
         if htmloutput:
@@ -161,7 +172,7 @@ def main():
             print htmloutput
         print '%<-----------------------------------------------------'
     else:
-        send_mail_smtp(sender, to_list, generate_subject(subject), output,
+        send_mail_smtp(sender, to_list, subject, output,
                        htmloutput, host, port)
 
     print 'Done!'
