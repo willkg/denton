@@ -37,7 +37,7 @@ class EvalExp(object):
         # FIXME: support filters here
         try:
             return unicode(eval(self.exp, globalsdict, env))
-        except (NameError, TypeError):
+        except (AttributeError, NameError, TypeError):
             return u'UNDEFINED'
 
 
