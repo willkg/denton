@@ -35,7 +35,10 @@ class EvalExp(object):
 
     def eval(self, globalsdict, env):
         # FIXME: support filters here
-        return unicode(eval(self.exp, globalsdict, env))
+        try:
+            return unicode(eval(self.exp, globalsdict, env))
+        except (NameError, TypeError):
+            return u'UNDEFINED'
 
 
 class Block(object):
@@ -103,7 +106,7 @@ class ParseError(Exception):
 class DenTemplate(object):
     # FIXME - This probably has problems with strings that have these
     # characters in them.
-    TAG_RE = re.compile(r'(\{%[^%]+%\}' + r'|' + r'\{\{[^\}]+\}\})')
+    TAG_RE = re.compile(r'(\{%[^%]+%\}' + r'|' + r'\{\{.+?\}\})')
 
     def parse_part(self, template, parts_left):
         """
