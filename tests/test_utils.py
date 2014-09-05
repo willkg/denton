@@ -1,3 +1,4 @@
+from datetime import datetime
 import textwrap
 import unittest
 
@@ -21,6 +22,33 @@ class TestDT(unittest.TestCase):
     def test_missing_eval(self):
         eq_(self.dt.templatize('{{ foo }}', {}), 'UNDEFINED')
         eq_(self.dt.templatize('{{ foo["bar"] }}', {}), 'UNDEFINED')
+
+    def test_eval_datetime_filter(self):
+        today = datetime.today()
+        eq_(
+            self.dt.templatize('{{ foo|datetime("%Y") }}',
+                               {'foo': datetime.today()}),
+            today.strftime('%Y')
+        )
+
+        eq_(
+            self.dt.templatize('{{ foo|datetime("%Y-%m-%d") }}',
+                               {'foo': datetime.today()}),
+            today.strftime('%Y-%m-%d')
+        )
+
+        eq_(
+            self.dt.templatize('{{ foo|datetime(" %Y-%m-%d ") }}',
+                               {'foo': datetime.today()}),
+            today.strftime(' %Y-%m-%d ')
+        )
+
+    def test_eval_escape_filter(self):
+        eq_(
+            self.dt.templatize('{{ foo|escape }}',
+                               {'foo': '<strong>'}),
+            '&lt;strong&gt;'
+        )
 
     def test_if(self):
         template = textwrap.dedent("""\

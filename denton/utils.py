@@ -1,3 +1,4 @@
+import cgi
 import json
 import re
 import urllib2
@@ -30,13 +31,29 @@ class Text(object):
 
 
 class EvalExp(object):
+    FILTER_RE = re.compile(
+        r'^'                              # begin
+        r'\s*([A-Za-z0-9_\-]+)\s*'        # filter name
+        r'(?:\s*\(\s*([^\)]+)\s*\))?'     # optional args in ()
+        r'\s*$'                           # end
+    )
     def __init__(self, exp):
         self.exp = exp
 
+    def apply_filter(self, filt, env, ret):
+        parts = self.FILTER_RE.match(filt)
+        name = parts.group(1)
+        args = parts.group(2)
+        return env[name + '_filter'](ret, args, env)
+
     def eval(self, globalsdict, env):
+        exp = self.exp.split('|')
         # FIXME: support filters here
         try:
-            return unicode(eval(self.exp, globalsdict, env))
+            ret = eval(exp[0], globalsdict, env)
+            for filt in exp[1:]:
+                ret = self.apply_filter(filt, env, ret)
+            return unicode(ret)
         except (AttributeError, NameError, TypeError):
             return u'UNDEFINED'
 
@@ -101,6 +118,25 @@ class ForBlock(Block):
 
 class ParseError(Exception):
     pass
+
+
+def datetime_filter(value, args, env):
+    """Takes a date/datetime and applies strftime to it"""
+    # FIXME: This doesn't handle escaped quotes and doesn't
+    # handle strings that are dates.
+    args = args.strip('"').strip("'")
+    return value.strftime(args)
+
+
+def escape_filter(value, args, env):
+    """Takes a string and escapes it"""
+    return cgi.escape(value)
+
+
+DEFAULT_FILTERS = {
+    'datetime_filter': datetime_filter,
+    'escape_filter': escape_filter
+}
 
 
 class DenTemplate(object):
@@ -180,7 +216,10 @@ class DenTemplate(object):
         return self.parse_part(template, list(parts))
 
     def templatize(self, template, env):
+        new_env = {}
+        new_env.update(DEFAULT_FILTERS)
+        new_env.update(env)
         tree = self.parse(template)
         globalsdict = {}
 
-        return tree.eval(globalsdict, env)
+        return tree.eval(globalsdict, new_env)
