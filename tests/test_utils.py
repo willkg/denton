@@ -43,6 +43,12 @@ class TestDT(unittest.TestCase):
             today.strftime(' %Y-%m-%d ')
         )
 
+        eq_(
+            self.dt.templatize('{{ foo|datetime("%Y-%m-%d") }}',
+                               {'foo': '2014-08-24 12:23'}),
+            '2014-08-24'
+        )
+
     def test_eval_escape_filter(self):
         eq_(
             self.dt.templatize('{{ foo|escape }}',

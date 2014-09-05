@@ -1,3 +1,5 @@
+from datetime import date, datetime
+
 import cgi
 import json
 import re
@@ -120,10 +122,29 @@ class ParseError(Exception):
     pass
 
 
+def parse_datetime(value):
+    templates = [
+        '%Y-%m-%dT%H:%M:%S.%f',
+        '%Y-%m-%dT%H:%M:%S',
+        '%Y-%m-%d %H:%M:%S',
+        '%Y-%m-%d %H:%M',
+        '%Y-%m-%d'
+    ]
+    for tmpl in templates:
+        try:
+            return datetime.strptime(value, tmpl)
+        except ValueError:
+            pass
+
+    return value
+
+
 def datetime_filter(value, args, env):
     """Takes a date/datetime and applies strftime to it"""
-    # FIXME: This doesn't handle escaped quotes and doesn't
-    # handle strings that are dates.
+    if not (isinstance(value, date) or isinstance(value, datetime)):
+        value = parse_datetime(value)
+
+    # FIXME: This doesn't handle escaped quotes.
     args = args.strip('"').strip("'")
     return value.strftime(args)
 
