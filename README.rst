@@ -65,7 +65,7 @@ Denton uses a config file in config file format. Here's a sample::
     htmltemplate = template.html.tmpl
 
     # subject for the email
-    subject = Weekly report for week {U} ({Y}-{m}-{d})
+    subject = Weekly report for week %U (%Y-%m-%d)
 
     # Who is this from?
     from = Me <janet@example.com>
@@ -81,9 +81,13 @@ Denton uses a config file in config file format. Here's a sample::
     # port = 25
 
 
+Templates
+=========
+
 Denton has a built-in templating engine that's kind of mediocre and
 small. It allows for eval parts with ``{{`` and ``}}`` and also has
-some rough blocks like ``if``, ``else``, and ``for``.
+some rough blocks like ``if``, ``else``, and ``for``. It also has
+support for eval filters.
 
 Here's an example::
 
@@ -91,7 +95,7 @@ Here's an example::
 
     {% if content %}
     {% for item in content %}
-    **{{ item['created'] }} :: {{ item['user']['name'] }}**
+    **{{ item['created']|datetime('%c') }} :: {{ item['user']['name'] }}**
     http://standu.ps/status/{{ item['id'] }}
 
     {{ item['content'] }}
@@ -110,3 +114,5 @@ go along.
 Whitespace handling kind of sucks. Best to left-align all block tags
 and give it an extra carriage return if you need one before and after
 block tags.
+
+See documentation for more details.
