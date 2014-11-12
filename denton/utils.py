@@ -3,7 +3,10 @@ from datetime import date, datetime
 import cgi
 import json
 import re
+import sys
+import textwrap
 import urllib2
+import StringIO
 
 
 def request_url(url, is_json=False):
@@ -28,7 +31,7 @@ class Text(object):
     def __init__(self, text):
         self.text = text
 
-    def eval(self, globalsdict, env):
+    def eval(self, env):
         return self.text
 
 
@@ -48,11 +51,11 @@ class EvalExp(object):
         args = parts.group(2)
         return env[name + '_filter'](ret, args, env)
 
-    def eval(self, globalsdict, env):
+    def eval(self, env):
         exp = self.exp.split('|')
         # FIXME: support filters here
         try:
-            ret = eval(exp[0], globalsdict, env)
+            ret = eval(exp[0], {}, env)
             for filt in exp[1:]:
                 ret = self.apply_filter(filt, env, ret)
             return unicode(ret)
@@ -65,34 +68,34 @@ class Block(object):
         self.blockexp = blockexp
         self.children = children
 
-    def eval(self, globalsdict, env):
+    def eval(self, env):
         output = []
         for mem in self.children:
-            output.append(str(mem.eval(globalsdict, env)))
+            output.append(str(mem.eval(env)))
         return u''.join(output)
 
     def nix_cr(self, children):
         # Nix \n from beginning and ending
         if children:
-            if children[0][0] == '\n':
+            if children[0] and children[0][0] == '\n':
                 children[0] = children[0][1:]
-            if children[-1][-1] == '\n':
+            if children[-1] and children[-1][-1] == '\n':
                 children[-1] = children[-1][:-1]
         return children
 
 
 class IfBlock(Block):
     IF_RE = re.compile(r'^\s*if\s+(.+)\s*$')
-    def eval(self, globalsdict, env):
+    def eval(self, env):
         parts = self.IF_RE.match(self.blockexp)
         exp = parts.group(1)
-        exp = eval(exp, globalsdict, env)
+        exp = eval(exp, {}, env)
         if not exp:
             return u''
 
         output = []
         for child in self.children:
-            output.append(child.eval(globalsdict, env))
+            output.append(child.eval(env))
 
         output = self.nix_cr(output)
         return u''.join(output)
@@ -100,10 +103,10 @@ class IfBlock(Block):
 
 class ForBlock(Block):
     FOR_RE = re.compile(r'^\s*for\s+([\w]+)\s+in\s+(.+)\s*$')
-    def eval(self, globalsdict, env):
+    def eval(self, env):
         parts = self.FOR_RE.match(self.blockexp)
         var_ = parts.group(1)
-        iter_ = eval(parts.group(2), globalsdict, env)
+        iter_ = eval(parts.group(2), {}, env)
 
         output = []
         for mem in iter_:
@@ -111,11 +114,33 @@ class ForBlock(Block):
 
             blockoutput = []
             for child in self.children:
-                blockoutput.append(child.eval(globalsdict, env))
+                blockoutput.append(child.eval(env))
 
             output.extend(self.nix_cr(blockoutput))
 
         return u''.join(output)
+
+
+class PythonBlock(Block):
+    def eval(self, env):
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+
+        try:
+            sys.stdout = StringIO.StringIO()
+            sys.stderr = StringIO.StringIO()
+
+            # FIXME: This will just die if it has problems. But that
+            # means it's less likely it dies for reasons you can't
+            # discern until something else unrelated dies and you're
+            # all like, "what happened?"
+            exec self.blockexp in env
+
+            return sys.stdout.getvalue() + sys.stderr.getvalue()
+
+        finally:
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
 
 
 class ParseError(Exception):
@@ -163,7 +188,7 @@ DEFAULT_FILTERS = {
 class DenTemplate(object):
     # FIXME - This probably has problems with strings that have these
     # characters in them.
-    TAG_RE = re.compile(r'(\{%[^%]+%\}' + r'|' + r'\{\{.+?\}\})')
+    TAG_RE = re.compile(r'(\{%.+?%\}' + r'|' + r'\{\{.+?\}\})', re.DOTALL)
 
     def parse_part(self, template, parts_left):
         """
@@ -178,7 +203,6 @@ class DenTemplate(object):
 
         while parts_left:
             part = parts_left[0]
-
             if part.startswith('{{'):
                 part = part[2:-2].strip()
                 children.append(EvalExp(part))
@@ -224,11 +248,17 @@ class DenTemplate(object):
                     return ForBlock(startblock, children)
 
                 else:
-                    raise ParseError('unknown start block "{0}"'.format(part))
+                    # We reassign part here because we don't want it
+                    # stripped. That way we can dedent it and it
+                    # works right.
+                    part = parts_left[0].strip()[2:-2]
+                    parts_left.pop(0)
+                    part = [piece for piece in part.splitlines() if piece.strip()]
+                    part = textwrap.dedent('\n'.join(part))
+                    children.append(PythonBlock(part, []))
 
             else:
-                children.append(Text(part))
-                parts_left.pop(0)
+                children.append(Text(parts_left.pop(0)))
 
         return Block(u'', children)
 
@@ -241,6 +271,5 @@ class DenTemplate(object):
         new_env.update(DEFAULT_FILTERS)
         new_env.update(env)
         tree = self.parse(template)
-        globalsdict = {}
 
-        return tree.eval(globalsdict, new_env)
+        return tree.eval(new_env)
