@@ -85,10 +85,10 @@ def send_mail_smtp(sender, to_list, subject, body, htmlbody, host, port):
     for to_name, to_addr in to_list:
         if htmlbody:
             msg = MIMEMultipart('alternative')
-            msg.attach(MIMEText(body, 'plain'))
-            msg.attach(MIMEText(htmlbody, 'html'))
+            msg.attach(MIMEText(body.encode('utf-8'), 'plain'))
+            msg.attach(MIMEText(htmlbody.encode('utf-8'), 'html'))
         else:
-            msg = MIMEText(body)
+            msg = MIMEText(body.encode('utf-8'))
 
         msg['To'] = email.utils.formataddr((to_name, to_addr))
         msg['From'] = email.utils.formataddr((sender_name, sender_addr))
