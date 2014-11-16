@@ -71,7 +71,7 @@ class Block(object):
     def eval(self, env):
         output = []
         for mem in self.children:
-            output.append(str(mem.eval(env)))
+            output.append(unicode(mem.eval(env)))
         return u''.join(output)
 
     def nix_cr(self, children):
